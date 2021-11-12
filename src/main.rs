@@ -1,14 +1,19 @@
-use memory::Memory;
+use memory::Cartridge;
+
+use crate::memory::Mmu;
+
 
 // use crate::cpu::Cpu;
 
+mod memory;
 mod boot_rom;
 mod cpu;
-mod memory;
 
 fn main() {
-    let memory: Memory = Memory::new(String::from("./tetris.gb"));
+    let cartridge = Cartridge::new(String::from("./tetris.gb"));
+    let mut mmu = Mmu { cartridge };
+    mmu.power_up();
 
-    println!("{}", memory.get_rom_title());
-    assert_eq!(0x7FFF, memory.rom.len() - 1);
+    // println!("{}", memory.get_rom_title());
+    // assert_eq!(0x7FFF, memory.rom.len() - 1);
 }
