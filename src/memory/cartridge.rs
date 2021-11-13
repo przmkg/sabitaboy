@@ -14,6 +14,21 @@ impl AddressSpace for Cartridge {
     fn set(&mut self, address: u16, value: u8) {
         self.data[address as usize] = value;
     }
+
+    fn get_word(&self, address: u16) -> u16 {
+        let h = (self.data[(address + 1) as usize] as u16) << 8;
+        let l = self.data[address as usize] as u16;
+
+        h | l
+    }
+
+    fn set_word(&mut self, address: u16, value: u16) {
+        let val = value as u8;
+        let next_val = (value >> 8) as u8;
+
+        self.data[address as usize] = val;
+        self.data[(address + 1) as usize] = next_val;
+    }
 }
 
 impl Cartridge {

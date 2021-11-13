@@ -1,5 +1,6 @@
 use super::address_space::AddressSpace;
 use super::cartridge::Cartridge;
+use super::{bytes_to_word, word_to_bytes};
 
 pub struct Mmu {
     pub cartridge: Cartridge,
@@ -50,7 +51,7 @@ impl AddressSpace for Mmu {
         match address {
             // ROM Bank
             // Fixed until 0x3FFF
-            0x0000..=0x7FFF => 0x00,
+            0x0000..=0x7FFF => self.cartridge.get(address),
 
             // Video RAM
             0x8000..=0x9FFF => 0x00,
@@ -116,5 +117,16 @@ impl AddressSpace for Mmu {
             // Interrupt Enable Register
             0xFFFF => {}
         }
+    }
+
+    fn get_word(&self, address: u16) -> u16 {
+        bytes_to_word(self.get(address + 1), self.get(address))
+    }
+
+    // TODO Not sure if any of this works
+    fn set_word(&mut self, address: u16, value: u16) {
+        let (h, l) = word_to_bytes(value);
+        self.set(address + 1, h);
+        self.set(address, l);
     }
 }
