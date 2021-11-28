@@ -1,7 +1,7 @@
 use crate::cpu::Cpu;
 
 pub fn execute(opcode: u8, cpu: &mut Cpu) {
-    println!("Opcode: {:#02X}", opcode);
+    println!("Opcode: {:#04X}", opcode);
     match opcode {
         // NOP
         0x00 => {}
@@ -10,13 +10,15 @@ pub fn execute(opcode: u8, cpu: &mut Cpu) {
         0xAF => xor_a(cpu),
         _ => {}
     }
+
+    // Check for interrupts
 }
 
 // JP a16, 3, 16
 fn jp_a16(cpu: &mut Cpu) {
     let next = cpu.next_word();
-    println!("JP ${:#04X}", next);
-    cpu.goto(next);
+    println!("JP ${:#06X}", next);
+    cpu.set_pc(next);
 }
 
 // XOR A, 1, 4

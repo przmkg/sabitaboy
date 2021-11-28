@@ -8,14 +8,6 @@ struct Regs {
     bc: u16,
     de: u16,
     hl: u16,
-    // a: u8,
-    // b: u8,
-    // c: u8,
-    // d: u8,
-    // e: u8,
-    // f: u8,
-    // h: u8,
-    // l: u8,
     sp: u16,
     pc: u16,
 }
@@ -63,16 +55,16 @@ impl<'a> Cpu<'a> {
         w
     }
 
-    pub fn goto(&mut self, address: u16) {
-        self.regs.pc = address;
-    }
-
     pub fn get_a(&self) -> u8 {
         (self.regs.af >> 8) as u8
     }
 
     pub fn get_pc(&self) -> u16 {
         self.regs.pc
+    }
+
+    pub fn set_pc(&mut self, address: u16) {
+        self.regs.pc = address;
     }
 
     pub fn set_fz(&mut self, value: bool) {
