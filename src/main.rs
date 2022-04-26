@@ -1,6 +1,9 @@
 use memory::Cartridge;
 
-use crate::{cpu::Cpu, memory::Mmu};
+use crate::{
+    cpu::{Cpu, ExecutionResult},
+    memory::Mmu,
+};
 
 mod boot_rom;
 mod cpu;
@@ -13,12 +16,16 @@ fn main() {
 
     let mut cpu = Cpu::new(&mut mmu);
 
-    cpu.execute();
-    cpu.execute();
+    loop {
+        match cpu.execute() {
+            ExecutionResult::Continue => {}
+            ExecutionResult::Stop => break,
+        }
+    }
 
     // assert_eq!(mmu.get(0x0100), 0x00);
     // assert_eq!(mmu.get(cpu.get_pc()), 0xC3);
-    assert_eq!(cpu.get_pc(), 0x0150);
+    //assert_eq!(cpu.get_pc(), 0x0150);
 
     println!("{}", mmu.cartridge.get_rom_title());
 }

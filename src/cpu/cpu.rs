@@ -1,20 +1,10 @@
 use crate::memory::{AddressSpace, Mmu};
 
-use super::{flags::Flags, op};
-
-#[allow(dead_code)]
-struct Regs {
-    af: u16,
-    bc: u16,
-    de: u16,
-    hl: u16,
-    sp: u16,
-    pc: u16,
-}
+use super::{flags::Flags, op, register::Registers, ExecutionResult};
 
 // TODO Remove when not needed anymore
 pub struct Cpu<'a> {
-    regs: Regs,
+    regs: Registers,
     flags: Flags,
     mmu: &'a mut Mmu,
 }
@@ -25,49 +15,63 @@ impl<'a> Cpu<'a> {
 
     pub fn new(mmu: &'a mut Mmu) -> Self {
         Self {
-            regs: Regs {
-                af: 0x01B0,
-                bc: 0x0013,
-                de: 0x00D8,
-                hl: 0x014D,
-                sp: 0xFFFE,
-                pc: 0x0100,
-            },
+            regs: Registers::default(),
             flags: Flags::new(),
             mmu,
         }
     }
 
-    pub fn execute(&mut self) {
+    pub fn print_registers(&self) {
+        println!("{}", self.regs);
+    }
+
+    pub fn execute(&mut self) -> ExecutionResult {
         let opcode = self.next_byte();
-        op::execute(opcode, self);
+        op::execute(opcode, self)
     }
 
     pub fn next_byte(&mut self) -> u8 {
-        let b = self.mmu.get(self.regs.pc);
-        self.regs.pc += 1;
+        let b = self.mmu.get(self.regs.pc.value());
+        self.regs.pc.inc();
         b
     }
 
     pub fn next_word(&mut self) -> u16 {
-        let w = self.mmu.get_word(self.regs.pc);
-        self.regs.pc += 2;
+        let w = self.mmu.get_word(self.regs.pc.value());
+        self.regs.pc.inc();
+        self.regs.pc.inc();
         w
     }
 
     pub fn get_a(&self) -> u8 {
-        (self.regs.af >> 8) as u8
+        (self.regs.af.value() >> 8) as u8
     }
 
     pub fn get_pc(&self) -> u16 {
-        self.regs.pc
+        self.regs.pc.value()
     }
 
     pub fn set_pc(&mut self, address: u16) {
-        self.regs.pc = address;
+        self.regs.pc.set(address);
     }
 
     pub fn set_fz(&mut self, value: bool) {
-        self.flags.zero = value;
+        self.flags.set_zero(value);
+    }
+
+    pub fn set_hl(&mut self, value: u16) {
+        self.regs.hl.set(value);
+    }
+
+    pub fn set_bc(&mut self, value: u16) {
+        self.regs.bc.set(value);
+    }
+
+    pub fn set_de(&mut self, value: u16) {
+        self.regs.de.set(value);
+    }
+
+    pub fn set_sp(&mut self, value: u16) {
+        self.regs.sp.set(value);
     }
 }

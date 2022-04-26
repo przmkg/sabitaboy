@@ -1,6 +1,11 @@
 use crate::cpu::Cpu;
 
-pub fn execute(opcode: u8, cpu: &mut Cpu) {
+pub enum ExecutionResult {
+    Continue,
+    Stop,
+}
+
+pub fn execute(opcode: u8, cpu: &mut Cpu) -> ExecutionResult {
     println!("Opcode: {:#04X}", opcode);
     match opcode {
         // NOP
@@ -8,9 +13,11 @@ pub fn execute(opcode: u8, cpu: &mut Cpu) {
         // JP a16
         0xC3 => jp_a16(cpu),
         0xAF => xor_a(cpu),
-        _ => {}
+        0x21 => ld_a16(cpu, opcode),
+        _ => return ExecutionResult::Stop,
     }
 
+    ExecutionResult::Continue
     // Check for interrupts
 }
 
@@ -30,4 +37,21 @@ fn xor_a(cpu: &mut Cpu) {
     if result == 0 {
         cpu.set_fz(true);
     }
+}
+
+// LD R, a16, 3, 12
+fn ld_a16(cpu: &mut Cpu, opcode: u8) {
+    let value = cpu.next_word();
+
+    println!("LD hl, {:#06X}", value);
+
+    match opcode {
+        0x01 => cpu.set_bc(value),
+        0x11 => cpu.set_de(value),
+        0x21 => cpu.set_hl(value),
+        0x31 => cpu.set_sp(value),
+        _ => {}
+    }
+
+    cpu.print_registers();
 }
