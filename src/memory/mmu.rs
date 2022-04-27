@@ -3,10 +3,14 @@ use super::cartridge::Cartridge;
 use super::{bytes_to_word, word_to_bytes};
 
 pub struct Mmu {
-    pub cartridge: Cartridge,
+    cartridge: Cartridge,
 }
 
 impl Mmu {
+    pub fn new(cartridge: Cartridge) -> Self {
+        Self { cartridge }
+    }
+
     pub fn power_up(&mut self) {
         self.init_memory();
     }
@@ -43,6 +47,10 @@ impl Mmu {
         self.set(0xFF4A, 0x00);
         self.set(0xFF4B, 0x00);
         self.set(0xFFFF, 0x00);
+    }
+
+    pub fn cartridge(&self) -> &Cartridge {
+        &self.cartridge
     }
 }
 

@@ -21,10 +21,6 @@ impl<'a> Cpu<'a> {
         }
     }
 
-    pub fn print_registers(&self) {
-        println!("{}", self.regs);
-    }
-
     pub fn execute(&mut self) -> ExecutionResult {
         let opcode = self.next_byte();
         op::execute(opcode, self)
@@ -43,35 +39,19 @@ impl<'a> Cpu<'a> {
         w
     }
 
-    pub fn get_a(&self) -> u8 {
-        (self.regs.af.value() >> 8) as u8
+    pub fn flags(&self) -> &Flags {
+        &self.flags
     }
 
-    pub fn get_pc(&self) -> u16 {
-        self.regs.pc.value()
+    pub fn flags_mut(&mut self) -> &mut Flags {
+        &mut self.flags
     }
 
-    pub fn set_pc(&mut self, address: u16) {
-        self.regs.pc.set(address);
+    pub fn regs(&self) -> &Registers {
+        &self.regs
     }
 
-    pub fn set_fz(&mut self, value: bool) {
-        self.flags.set_zero(value);
-    }
-
-    pub fn set_hl(&mut self, value: u16) {
-        self.regs.hl.set(value);
-    }
-
-    pub fn set_bc(&mut self, value: u16) {
-        self.regs.bc.set(value);
-    }
-
-    pub fn set_de(&mut self, value: u16) {
-        self.regs.de.set(value);
-    }
-
-    pub fn set_sp(&mut self, value: u16) {
-        self.regs.sp.set(value);
+    pub fn regs_mut(&mut self) -> &mut Registers {
+        &mut self.regs
     }
 }

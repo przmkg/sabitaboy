@@ -1,5 +1,8 @@
 use std::fmt::Display;
 
+const WORD_H: u16 = 0b11111111_00000000;
+const WORD_L: u16 = 0b00000000_11111111;
+
 pub struct Register {
     value: u16,
 }
@@ -65,5 +68,71 @@ impl Display for Registers {
         "#,
             self.af, self.bc, self.de, self.hl, self.sp, self.pc
         )
+    }
+}
+
+impl Registers {
+    // Get
+
+    pub fn get_pc(&self) -> u16 {
+        self.pc.value()
+    }
+
+    pub fn get_a(&self) -> u8 {
+        (self.af.value() >> 8) as u8
+    }
+
+    // Set RR
+
+    pub fn set_pc(&mut self, address: u16) {
+        self.pc.set(address);
+    }
+
+    pub fn set_hl(&mut self, value: u16) {
+        self.hl.set(value);
+    }
+
+    pub fn set_bc(&mut self, value: u16) {
+        self.bc.set(value);
+    }
+
+    pub fn set_de(&mut self, value: u16) {
+        self.de.set(value);
+    }
+
+    pub fn set_sp(&mut self, value: u16) {
+        self.sp.set(value);
+    }
+
+    // Set R
+
+    pub fn set_c(&mut self, value: u8) {
+        self.bc.set(set_lower_byte(self.bc.value(), value));
+    }
+
+    pub fn set_b(&mut self, value: u8) {
+        self.bc.set(set_higher_byte(self.bc.value(), value));
+    }
+}
+
+fn set_lower_byte(word: u16, value: u8) -> u16 {
+    (word & WORD_H) | value as u16
+}
+
+fn set_higher_byte(word: u16, value: u8) -> u16 {
+    (word & WORD_L) | ((value as u16) << 8)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cpu::register::{set_higher_byte, set_lower_byte};
+
+    #[test]
+    pub fn set_single_register() {
+        let a = 0b10110101_00101110;
+        let b = 0b11001001;
+
+        assert_eq!(0b10110101_11001001, set_lower_byte(a, b));
+        assert_eq!(0b11001001_00101110, set_higher_byte(a, b));
     }
 }

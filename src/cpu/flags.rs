@@ -19,6 +19,8 @@ impl Flags {
         }
     }
 
+    // Get
+
     pub fn zero(&self) -> bool {
         self.zero
     }
@@ -34,6 +36,8 @@ impl Flags {
     pub fn carry(&self) -> bool {
         self.carry
     }
+
+    // Set
 
     pub fn set_zero(&mut self, value: bool) {
         self.zero = value
