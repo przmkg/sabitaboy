@@ -3,6 +3,25 @@ use std::fmt::Display;
 const WORD_H: u16 = 0b11111111_00000000;
 const WORD_L: u16 = 0b00000000_11111111;
 
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum Reg {
+    A,
+    F,
+    AF,
+    B,
+    C,
+    BC,
+    D,
+    E,
+    DE,
+    H,
+    L,
+    HL,
+    SP,
+    PC,
+}
+
 pub struct Register {
     value: u16,
 }
@@ -106,12 +125,32 @@ impl Registers {
 
     // Set R
 
+    pub fn set_a(&mut self, value: u8) {
+        self.af.set(set_higher_byte(self.af.value(), value));
+    }
+
     pub fn set_c(&mut self, value: u8) {
         self.bc.set(set_lower_byte(self.bc.value(), value));
     }
 
     pub fn set_b(&mut self, value: u8) {
         self.bc.set(set_higher_byte(self.bc.value(), value));
+    }
+
+    pub fn set_d(&mut self, value: u8) {
+        self.de.set(set_higher_byte(self.de.value(), value));
+    }
+
+    pub fn set_e(&mut self, value: u8) {
+        self.de.set(set_lower_byte(self.de.value(), value));
+    }
+
+    pub fn set_h(&mut self, value: u8) {
+        self.hl.set(set_higher_byte(self.hl.value(), value));
+    }
+
+    pub fn set_l(&mut self, value: u8) {
+        self.hl.set(set_lower_byte(self.hl.value(), value));
     }
 }
 

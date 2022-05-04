@@ -5,4 +5,3 @@ mod opcodes;
 mod register;
 
 pub use cpu::Cpu;
-pub use op::ExecutionResult;

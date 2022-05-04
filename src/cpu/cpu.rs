@@ -1,6 +1,6 @@
 use crate::memory::{AddressSpace, Mmu};
 
-use super::{flags::Flags, op, register::Registers, ExecutionResult};
+use super::{flags::Flags, op, register::Registers};
 
 // TODO Remove when not needed anymore
 pub struct Cpu<'a> {
@@ -21,9 +21,9 @@ impl<'a> Cpu<'a> {
         }
     }
 
-    pub fn execute(&mut self) -> ExecutionResult {
+    pub fn execute(&mut self) {
         let opcode = self.next_byte();
-        op::execute(opcode, self)
+        op::execute(opcode, self);
     }
 
     pub fn next_byte(&mut self) -> u8 {

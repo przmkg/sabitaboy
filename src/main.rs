@@ -1,9 +1,6 @@
 use memory::Cartridge;
 
-use crate::{
-    cpu::{Cpu, ExecutionResult},
-    memory::Mmu,
-};
+use crate::{cpu::Cpu, memory::Mmu};
 
 mod boot_rom;
 mod cpu;
@@ -20,9 +17,6 @@ fn main() {
 
     loop {
         // TODO Redo the whole loop
-        match cpu.execute() {
-            ExecutionResult::Continue => {}
-            ExecutionResult::Stop => break,
-        }
+        cpu.execute();
     }
 }
