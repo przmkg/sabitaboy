@@ -1,16 +1,19 @@
-use crate::cpu::Cpu;
+use crate::{cpu::Cpu, memory::AddressSpace};
 
 use super::register::Reg;
 
 pub fn execute(opcode: u8, cpu: &mut Cpu) -> u8 {
     println!("Opcode: {:#04X}", opcode);
+
+    let regs = cpu.regs().clone();
+
     match opcode {
         // NOP
         0x00 => 4,
         0xC3 => jp_a16(cpu),
         0xAF => xor_a(cpu),
         0x21 => ld_d16(cpu, opcode),
-        // LD R d8
+        // LD R, d8
         0x06 => ld_r_d8(cpu, Reg::B),
         0x16 => ld_r_d8(cpu, Reg::D),
         0x26 => ld_r_d8(cpu, Reg::H),
@@ -18,6 +21,8 @@ pub fn execute(opcode: u8, cpu: &mut Cpu) -> u8 {
         0x1E => ld_r_d8(cpu, Reg::E),
         0x2E => ld_r_d8(cpu, Reg::L),
         0x3E => ld_r_d8(cpu, Reg::A),
+        // LD (RR), R
+        0x02 => ld_a16_r(cpu, regs.bc.value().clone(), regs.get_a(), HLAction::None),
         _ => {
             panic!("Unimplemented: {:#04X}", opcode);
         }
@@ -77,6 +82,25 @@ fn ld_r_d8(cpu: &mut Cpu, target_register: Reg) -> Cycles {
         Reg::H => cpu.regs_mut().set_h(value),
         Reg::L => cpu.regs_mut().set_l(value),
         _ => panic!("LD R, d8: Unknown register {:?}", target_register),
+    }
+
+    8
+}
+
+pub enum HLAction {
+    Inc,
+    Dec,
+    None,
+}
+
+// LD (RR), R, 1, 8
+fn ld_a16_r(cpu: &mut Cpu, target_address: u16, value: u8, action: HLAction) -> Cycles {
+    cpu.mmu_mut().set(target_address, value);
+
+    match action {
+        HLAction::Inc => cpu.regs_mut().hl.inc(),
+        HLAction::Dec => cpu.regs_mut().hl.dec(),
+        HLAction::None => {}
     }
 
     8

@@ -42,6 +42,10 @@ impl Register {
     pub fn inc(&mut self) {
         self.value += 1;
     }
+
+    pub fn dec(&mut self) {
+        self.value -= 1;
+    }
 }
 
 impl Display for Register {

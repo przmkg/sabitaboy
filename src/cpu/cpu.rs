@@ -39,6 +39,14 @@ impl<'a> Cpu<'a> {
         w
     }
 
+    pub fn mmu(&self) -> &Mmu {
+        &self.mmu
+    }
+
+    pub fn mmu_mut(&mut self) -> &mut Mmu {
+        &mut self.mmu
+    }
+
     pub fn flags(&self) -> &Flags {
         &self.flags
     }
