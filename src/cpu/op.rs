@@ -1,6 +1,6 @@
 use crate::{cpu::Cpu, memory::AddressSpace};
 
-use super::register::Reg;
+use super::register::{Reg, Register};
 
 pub fn execute(opcode: u8, cpu: &mut Cpu) -> u8 {
     println!("Opcode: {:#04X}", opcode);
@@ -12,7 +12,24 @@ pub fn execute(opcode: u8, cpu: &mut Cpu) -> u8 {
         0x00 => 4,
         0xC3 => jp_a16(cpu),
         0xAF => xor_a(cpu),
-        0x21 => ld_d16(cpu, opcode),
+        // LD RR, d16
+        0x01 => {
+            let value = cpu.next_word();
+            ld_rr_d16(&mut cpu.regs_mut().bc, value)
+        }
+        0x11 => {
+            let value = cpu.next_word();
+            ld_rr_d16(&mut cpu.regs_mut().de, value)
+        }
+        0x21 => {
+            let value = cpu.next_word();
+            ld_rr_d16(&mut cpu.regs_mut().hl, value)
+        }
+        0x31 => {
+            let value = cpu.next_word();
+            ld_rr_d16(&mut cpu.regs_mut().sp, value)
+        }
+        0x05 => {}
         // LD R, d8
         0x06 => ld_r_d8(cpu, Reg::B),
         0x16 => ld_r_d8(cpu, Reg::D),
@@ -22,7 +39,22 @@ pub fn execute(opcode: u8, cpu: &mut Cpu) -> u8 {
         0x2E => ld_r_d8(cpu, Reg::L),
         0x3E => ld_r_d8(cpu, Reg::A),
         // LD (RR), R
-        0x02 => ld_a16_r(cpu, regs.bc.value().clone(), regs.get_a(), HLAction::None),
+        0x02 => {
+            let (target_address, value) = (regs.bc.value(), regs.get_a());
+            ld_a16_r(cpu, target_address, value)
+        }
+        0x12 => {
+            let (target_address, value) = (regs.de.value(), regs.get_a());
+            ld_a16_r(cpu, target_address, value)
+        }
+        0x22 => {
+            let value = regs.get_a();
+            ld_hl_r(cpu, value, HLAction::Inc)
+        }
+        0x32 => {
+            let value = regs.get_a();
+            ld_hl_r(cpu, value, HLAction::Dec)
+        }
         _ => {
             panic!("Unimplemented: {:#04X}", opcode);
         }
@@ -55,16 +87,8 @@ fn xor_a(cpu: &mut Cpu) -> Cycles {
 }
 
 // LD RR, d16, 3, 12
-fn ld_d16(cpu: &mut Cpu, opcode: u8) -> Cycles {
-    let value = cpu.next_word();
-
-    match opcode {
-        0x01 => cpu.regs_mut().set_bc(value),
-        0x11 => cpu.regs_mut().set_de(value),
-        0x21 => cpu.regs_mut().set_hl(value),
-        0x31 => cpu.regs_mut().set_sp(value),
-        _ => {}
-    }
+fn ld_rr_d16(target_reg: &mut Register, value: u16) -> Cycles {
+    target_reg.set(value);
 
     12
 }
@@ -93,9 +117,10 @@ pub enum HLAction {
     None,
 }
 
-// LD (RR), R, 1, 8
-fn ld_a16_r(cpu: &mut Cpu, target_address: u16, value: u8, action: HLAction) -> Cycles {
-    cpu.mmu_mut().set(target_address, value);
+// LD (HL), R, 1, 8
+fn ld_hl_r(cpu: &mut Cpu, value: u8, action: HLAction) -> Cycles {
+    let hl_address = cpu.regs().hl.value();
+    cpu.mmu_mut().set(hl_address, value);
 
     match action {
         HLAction::Inc => cpu.regs_mut().hl.inc(),
@@ -104,4 +129,17 @@ fn ld_a16_r(cpu: &mut Cpu, target_address: u16, value: u8, action: HLAction) -> 
     }
 
     8
+}
+
+// LD (RR), R, 1, 8
+fn ld_a16_r(cpu: &mut Cpu, target_address: u16, value: u8) -> Cycles {
+    cpu.mmu_mut().set(target_address, value);
+
+    8
+}
+
+// DEC R, 1, 4
+// Z 1 H
+fn dec_r() -> Cycles {
+    4
 }
