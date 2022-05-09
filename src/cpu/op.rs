@@ -1,6 +1,9 @@
 use crate::{cpu::Cpu, memory::AddressSpace};
 
-use super::register::{Reg, Register};
+use super::{
+    flags::Flags,
+    register::{Reg, Register, Registers},
+};
 
 pub fn execute(opcode: u8, cpu: &mut Cpu) -> u8 {
     println!("Opcode: {:#04X}", opcode);
@@ -15,44 +18,69 @@ pub fn execute(opcode: u8, cpu: &mut Cpu) -> u8 {
         // LD RR, d16
         0x01 => {
             let value = cpu.next_word();
-            ld_rr_d16(&mut cpu.regs_mut().bc, value)
+            ld_rr_d16(&mut cpu.regs_mut(), Reg::BC, value)
         }
         0x11 => {
             let value = cpu.next_word();
-            ld_rr_d16(&mut cpu.regs_mut().de, value)
+            ld_rr_d16(&mut cpu.regs_mut(), Reg::DE, value)
         }
         0x21 => {
             let value = cpu.next_word();
-            ld_rr_d16(&mut cpu.regs_mut().hl, value)
+            ld_rr_d16(&mut cpu.regs_mut(), Reg::HL, value)
         }
         0x31 => {
             let value = cpu.next_word();
-            ld_rr_d16(&mut cpu.regs_mut().sp, value)
+            ld_rr_d16(&mut cpu.regs_mut(), Reg::SP, value)
         }
-        0x05 => {}
+        0x05 => {
+            let reg_a = &mut cpu.regs_mut().a;
+            // TODO Implement that
+            dec_r(reg_a)
+        }
         // LD R, d8
-        0x06 => ld_r_d8(cpu, Reg::B),
-        0x16 => ld_r_d8(cpu, Reg::D),
-        0x26 => ld_r_d8(cpu, Reg::H),
-        0x0E => ld_r_d8(cpu, Reg::C),
-        0x1E => ld_r_d8(cpu, Reg::E),
-        0x2E => ld_r_d8(cpu, Reg::L),
-        0x3E => ld_r_d8(cpu, Reg::A),
+        0x06 => {
+            let value = cpu.next_byte();
+            ld_r_d8(&mut cpu.regs_mut().b, value)
+        }
+        0x16 => {
+            let value = cpu.next_byte();
+            ld_r_d8(&mut cpu.regs_mut().d, value)
+        }
+        0x26 => {
+            let value = cpu.next_byte();
+            ld_r_d8(&mut cpu.regs_mut().h, value)
+        }
+        0x0E => {
+            let value = cpu.next_byte();
+            ld_r_d8(&mut cpu.regs_mut().c, value)
+        }
+        0x1E => {
+            let value = cpu.next_byte();
+            ld_r_d8(&mut cpu.regs_mut().e, value)
+        }
+        0x2E => {
+            let value = cpu.next_byte();
+            ld_r_d8(&mut cpu.regs_mut().l, value)
+        }
+        0x3E => {
+            let value = cpu.next_byte();
+            ld_r_d8(&mut cpu.regs_mut().a, value)
+        }
         // LD (RR), R
         0x02 => {
-            let (target_address, value) = (regs.bc.value(), regs.get_a());
+            let (target_address, value) = (regs.get_bc(), regs.a.value());
             ld_a16_r(cpu, target_address, value)
         }
         0x12 => {
-            let (target_address, value) = (regs.de.value(), regs.get_a());
+            let (target_address, value) = (regs.get_de(), regs.a.value());
             ld_a16_r(cpu, target_address, value)
         }
         0x22 => {
-            let value = regs.get_a();
+            let value = regs.a.value();
             ld_hl_r(cpu, value, HLAction::Inc)
         }
         0x32 => {
-            let value = regs.get_a();
+            let value = regs.a.value();
             ld_hl_r(cpu, value, HLAction::Dec)
         }
         _ => {
@@ -76,7 +104,7 @@ fn jp_a16(cpu: &mut Cpu) -> Cycles {
 // XOR A, 1, 4
 // Z
 fn xor_a(cpu: &mut Cpu) -> Cycles {
-    let a = cpu.regs().get_a();
+    let a = cpu.regs().a.value();
     let result = a ^ a;
 
     if result == 0 {
@@ -87,26 +115,21 @@ fn xor_a(cpu: &mut Cpu) -> Cycles {
 }
 
 // LD RR, d16, 3, 12
-fn ld_rr_d16(target_reg: &mut Register, value: u16) -> Cycles {
-    target_reg.set(value);
+fn ld_rr_d16(regs: &mut Registers, target_register: Reg, value: u16) -> Cycles {
+    match target_register {
+        Reg::BC => regs.set_bc(value),
+        Reg::DE => regs.set_de(value),
+        Reg::HL => regs.set_hl(value),
+        Reg::SP => regs.set_sp(value),
+        _ => panic!("LD RR, d16, Unknown register: {:?}", target_register),
+    }
 
     12
 }
 
 // LD R, d8, 2, 8
-fn ld_r_d8(cpu: &mut Cpu, target_register: Reg) -> Cycles {
-    let value = cpu.next_byte();
-
-    match target_register {
-        Reg::A => cpu.regs_mut().set_a(value),
-        Reg::B => cpu.regs_mut().set_b(value),
-        Reg::C => cpu.regs_mut().set_c(value),
-        Reg::D => cpu.regs_mut().set_d(value),
-        Reg::E => cpu.regs_mut().set_e(value),
-        Reg::H => cpu.regs_mut().set_h(value),
-        Reg::L => cpu.regs_mut().set_l(value),
-        _ => panic!("LD R, d8: Unknown register {:?}", target_register),
-    }
+fn ld_r_d8(target_register: &mut Register<u8>, value: u8) -> Cycles {
+    target_register.set(value);
 
     8
 }
@@ -119,12 +142,12 @@ pub enum HLAction {
 
 // LD (HL), R, 1, 8
 fn ld_hl_r(cpu: &mut Cpu, value: u8, action: HLAction) -> Cycles {
-    let hl_address = cpu.regs().hl.value();
-    cpu.mmu_mut().set(hl_address, value);
+    let hl_value = cpu.regs().get_hl();
+    cpu.mmu_mut().set(hl_value, value);
 
     match action {
-        HLAction::Inc => cpu.regs_mut().hl.inc(),
-        HLAction::Dec => cpu.regs_mut().hl.dec(),
+        HLAction::Inc => cpu.regs_mut().set_hl(hl_value.saturating_add(1)),
+        HLAction::Dec => cpu.regs_mut().set_hl(hl_value.saturating_sub(1)),
         HLAction::None => {}
     }
 
@@ -140,6 +163,10 @@ fn ld_a16_r(cpu: &mut Cpu, target_address: u16, value: u8) -> Cycles {
 
 // DEC R, 1, 4
 // Z 1 H
-fn dec_r() -> Cycles {
+fn dec_r(target_register: &mut Register<u8>) -> Cycles {
+    let value = target_register.value();
+
+    target_register.dec();
+
     4
 }

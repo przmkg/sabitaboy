@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 const WORD_H: u16 = 0b11111111_00000000;
 const WORD_L: u16 = 0b00000000_11111111;
@@ -22,23 +25,31 @@ pub enum Reg {
     PC,
 }
 
-pub struct Register {
-    value: u16,
+pub struct Register<T>
+where
+    T: Add,
+{
+    value: T,
 }
 
-impl Register {
-    fn new(value: u16) -> Self {
+impl<T> Register<T>
+where
+    T: Add + AddAssign + SubAssign + Copy,
+{
+    fn new(value: T) -> Self {
         Self { value }
     }
 
-    pub fn value(&self) -> u16 {
+    pub fn value(&self) -> T {
         self.value
     }
 
-    pub fn set(&mut self, value: u16) {
+    pub fn set(&mut self, value: T) {
         self.value = value;
     }
+}
 
+impl Register<u8> {
     pub fn inc(&mut self) {
         self.value += 1;
     }
@@ -48,7 +59,23 @@ impl Register {
     }
 }
 
-impl Display for Register {
+impl Register<u16> {
+    pub fn inc(&mut self) {
+        self.value += 1;
+    }
+
+    pub fn dec(&mut self) {
+        self.value -= 1;
+    }
+}
+
+impl Display for Register<u8> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#04X}", self.value)
+    }
+}
+
+impl Display for Register<u16> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:#06X}", self.value)
     }
@@ -56,53 +83,54 @@ impl Display for Register {
 
 #[allow(dead_code)]
 pub struct Registers {
-    pub af: Register,
-    pub bc: Register,
-    pub de: Register,
-    pub hl: Register,
-    pub sp: Register,
-    pub pc: Register,
+    pub a: Register<u8>,
+    pub f: Register<u8>,
+    pub b: Register<u8>,
+    pub c: Register<u8>,
+    pub d: Register<u8>,
+    pub e: Register<u8>,
+    pub h: Register<u8>,
+    pub l: Register<u8>,
+    pub sp: Register<u16>,
+    pub pc: Register<u16>,
 }
 
 impl Registers {
     pub fn default() -> Self {
         Self {
-            af: Register::new(0x01B0),
-            bc: Register::new(0x0013),
-            de: Register::new(0x00D8),
-            hl: Register::new(0x014D),
+            a: Register::new(0x01),
+            f: Register::new(0xB0),
+            b: Register::new(0x00),
+            c: Register::new(0x13),
+            d: Register::new(0x00),
+            e: Register::new(0xD8),
+            h: Register::new(0x01),
+            l: Register::new(0x4D),
             sp: Register::new(0xFFFE),
             pc: Register::new(0x0100),
         }
     }
 }
 
-impl Display for Registers {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            r#"
-    af: {},
-    bc: {},
-    de: {},
-    hl: {},
-    sp: {},
-    pc: {} 
-        "#,
-            self.af, self.bc, self.de, self.hl, self.sp, self.pc
-        )
-    }
-}
-
 impl Registers {
     // Get
 
+    // TODO Remove that method
     pub fn get_pc(&self) -> u16 {
         self.pc.value()
     }
 
-    pub fn get_a(&self) -> u8 {
-        (self.af.value() >> 8) as u8
+    // Get RR
+    pub fn get_hl(&self) -> u16 {
+        get_word_from_bytes(self.h.value, self.l.value)
+    }
+
+    pub fn get_bc(&self) -> u16 {
+        get_word_from_bytes(self.b.value, self.c.value)
+    }
+
+    pub fn get_de(&self) -> u16 {
+        get_word_from_bytes(self.d.value, self.e.value)
     }
 
     // Set RR
@@ -111,51 +139,38 @@ impl Registers {
         self.pc.set(address);
     }
 
-    pub fn set_hl(&mut self, value: u16) {
-        self.hl.set(value);
-    }
-
-    pub fn set_bc(&mut self, value: u16) {
-        self.bc.set(value);
-    }
-
-    pub fn set_de(&mut self, value: u16) {
-        self.de.set(value);
-    }
-
     pub fn set_sp(&mut self, value: u16) {
         self.sp.set(value);
     }
 
-    // Set R
-
-    pub fn set_a(&mut self, value: u8) {
-        self.af.set(set_higher_byte(self.af.value(), value));
+    pub fn set_hl(&mut self, value: u16) {
+        let (h, l) = split_word(value);
+        self.h.set(h);
+        self.l.set(l);
     }
 
-    pub fn set_c(&mut self, value: u8) {
-        self.bc.set(set_lower_byte(self.bc.value(), value));
+    pub fn set_bc(&mut self, value: u16) {
+        let (h, l) = split_word(value);
+        self.b.set(h);
+        self.c.set(l);
     }
 
-    pub fn set_b(&mut self, value: u8) {
-        self.bc.set(set_higher_byte(self.bc.value(), value));
+    pub fn set_de(&mut self, value: u16) {
+        let (h, l) = split_word(value);
+        self.d.set(h);
+        self.e.set(l);
     }
+}
 
-    pub fn set_d(&mut self, value: u8) {
-        self.de.set(set_higher_byte(self.de.value(), value));
-    }
+fn split_word(word: u16) -> (u8, u8) {
+    let h = (word >> 8) as u8;
+    let l = word as u8;
 
-    pub fn set_e(&mut self, value: u8) {
-        self.de.set(set_lower_byte(self.de.value(), value));
-    }
+    (h, l)
+}
 
-    pub fn set_h(&mut self, value: u8) {
-        self.hl.set(set_higher_byte(self.hl.value(), value));
-    }
-
-    pub fn set_l(&mut self, value: u8) {
-        self.hl.set(set_lower_byte(self.hl.value(), value));
-    }
+fn get_word_from_bytes(h: u8, l: u8) -> u16 {
+    (h as u16) << 8 & l as u16
 }
 
 fn set_lower_byte(word: u16, value: u8) -> u16 {
