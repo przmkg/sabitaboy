@@ -1,6 +1,8 @@
+mod byteutils;
 mod cpu;
 mod flags;
-mod op;
+mod instr;
 mod register;
 
 pub use cpu::Cpu;
+pub use register::Register;
