@@ -1,12 +1,10 @@
-use std::{cell::RefCell, rc::Rc};
-
 use crate::{cpu::Cpu, memory::AddressSpace};
 
-use super::register::{Reg16, Reg8, Register};
+use super::register::{Reg16, Reg8};
 
 type Cycles = u8;
 
-pub enum HLAction {
+enum RegisterAction {
     Inc,
     Dec,
     None,
@@ -14,19 +12,37 @@ pub enum HLAction {
 
 impl<'a> Cpu<'a> {
     // JP a16, 3, 16
-    fn jp_a16(&mut self) -> Cycles {
-        let next = self.next_word();
-        self.regs.pc.set(next);
+    fn jp_a16(&mut self, condition: bool) -> Cycles {
+        if condition {
+            let next = self.read_word();
+            self.pc.set(next);
 
-        16
+            16
+        } else {
+            12
+        }
     }
 
-    // XOR A, 1, 4
-    // Z
-    fn xor_a(&mut self) -> Cycles {
-        let a = self.regs.a.value();
+    // JR cc, d8, 2, 12/8
+    fn jr_d8(&mut self, condition: bool) -> Cycles {
+        if condition {
+            let address = self.pc.value().wrapping_add(self.peek_byte() as u16);
+            self.pc.set(address);
 
-        if a ^ a == 0 {
+            12
+        } else {
+            8
+        }
+    }
+
+    // XOR R, 1, 4
+    // Z
+    fn xor_r(&mut self, target_register: Reg8) -> Cycles {
+        let reg = self.get_r(target_register);
+
+        reg.set(reg.value() ^ reg.value());
+
+        if reg.value() == 0 {
             self.flags.zero = true;
         }
 
@@ -35,7 +51,7 @@ impl<'a> Cpu<'a> {
 
     // LD RR, d16, 3, 12
     fn ld_rr_d16(&mut self, target_register: Reg16) -> Cycles {
-        let value = self.next_word();
+        let value = self.read_word();
         self.set_r16(target_register, value);
 
         12
@@ -43,29 +59,26 @@ impl<'a> Cpu<'a> {
 
     // LD R, d8, 2, 8
     fn ld_r_d8(&mut self, target_register: Reg8) -> Cycles {
-        let value = self.next_byte();
-        self.set_r8(target_register, value);
-
-        8
-    }
-
-    // LD (HL), R, 1, 8
-    fn ld_hl_r(&mut self, value: u8, action: HLAction) -> Cycles {
-        let hl_value = self.get_r16(Reg16::HL);
-        self.mmu.set(hl_value, value);
-
-        match action {
-            HLAction::Inc => self.set_r16(Reg16::HL, hl_value.saturating_add(1)),
-            HLAction::Dec => self.set_r16(Reg16::HL, hl_value.saturating_sub(1)),
-            HLAction::None => {}
-        }
+        let value = self.read_byte();
+        self.get_r(target_register).set(value);
 
         8
     }
 
     // LD (RR), R, 1, 8
-    fn ld_a16_r(&mut self, target_address: u16, value: u8) -> Cycles {
-        self.mmu.set(target_address, value);
+    fn ld_a16_r(&mut self, address_register: Reg16, value: u8, action: RegisterAction) -> Cycles {
+        let register_value = self.get_r16(address_register);
+        self.mmu.set(register_value, value);
+
+        match action {
+            RegisterAction::Inc => {
+                self.set_r16(address_register, register_value.overflowing_sub(1).0)
+            }
+            RegisterAction::Dec => {
+                self.set_r16(address_register, register_value.overflowing_sub(1).0)
+            }
+            RegisterAction::None => {}
+        }
 
         8
     }
@@ -73,33 +86,43 @@ impl<'a> Cpu<'a> {
     // DEC R, 1, 4
     // Z 1 H
     fn dec_r(&mut self, target_register: Reg8) -> Cycles {
-        // TODO impl
-        // let value = target_register.value();
+        let reg = self.get_r(target_register);
+        let half_carry = ((reg.value() & 0xF).wrapping_sub(1) & 0x10) != 0;
+        let (result, _) = reg.dec();
 
-        // target_register.dec();
+        self.flags.sub = true;
+        self.flags.zero = result == 0;
+        self.flags.half_carry = half_carry;
 
         4
     }
 
     pub fn execute(&mut self) -> u8 {
-        let opcode = self.next_byte();
+        println!("PC: {:04X}", self.pc.value());
+        let opcode = self.read_byte();
         println!("Opcode: {:#04X}", opcode);
 
         match opcode {
             // NOP
             0x00 => 4,
-            0xC3 => self.jp_a16(),
-            0xAF => self.xor_a(),
+            0xC3 => self.jp_a16(true),
+            0xAF => self.xor_r(Reg8::A),
+            // JR cc, d8
+            0x20 => self.jr_d8(!self.flags.zero),
+            0x30 => self.jr_d8(!self.flags.carry),
             // LD RR, d16
             0x01 => self.ld_rr_d16(Reg16::BC),
             0x11 => self.ld_rr_d16(Reg16::DE),
             0x21 => self.ld_rr_d16(Reg16::HL),
             0x31 => self.ld_rr_d16(Reg16::SP),
-            0x05 => {
-                // TODO Implement that
-                // self.dec_r(&mut self.a)
-                0
-            }
+            // DEC R
+            0x05 => self.dec_r(Reg8::B),
+            0x15 => self.dec_r(Reg8::D),
+            0x25 => self.dec_r(Reg8::H),
+            0x0D => self.dec_r(Reg8::C),
+            0x1D => self.dec_r(Reg8::E),
+            0x2D => self.dec_r(Reg8::L),
+            0x3D => self.dec_r(Reg8::A),
             // LD R, d8
             0x06 => self.ld_r_d8(Reg8::B),
             0x16 => self.ld_r_d8(Reg8::D),
@@ -109,22 +132,11 @@ impl<'a> Cpu<'a> {
             0x2E => self.ld_r_d8(Reg8::L),
             0x3E => self.ld_r_d8(Reg8::A),
             // LD (RR), R
-            0x02 => {
-                let (target_address, value) = (self.get_r16(Reg16::BC), self.a.value());
-                self.ld_a16_r(target_address, value)
-            }
-            0x12 => {
-                let (target_address, value) = (self.get_r16(Reg16::DE), self.a.value());
-                self.ld_a16_r(target_address, value)
-            }
-            0x22 => {
-                let value = self.regs.a.value();
-                self.ld_hl_r(value, HLAction::Inc)
-            }
-            0x32 => {
-                let value = self.regs.a.value();
-                self.ld_hl_r(value, HLAction::Dec)
-            }
+            0x02 => self.ld_a16_r(Reg16::BC, self.a.value(), RegisterAction::None),
+            0x12 => self.ld_a16_r(Reg16::DE, self.a.value(), RegisterAction::None),
+            0x22 => self.ld_a16_r(Reg16::HL, self.a.value(), RegisterAction::Inc),
+            0x32 => self.ld_a16_r(Reg16::HL, self.a.value(), RegisterAction::Dec),
+            0x71 => self.ld_a16_r(Reg16::HL, self.c.value(), RegisterAction::None),
             _ => {
                 panic!("Unimplemented: {:#04X}", opcode);
             }

@@ -5,7 +5,7 @@ use std::{
 };
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Reg16 {
     AF,
     BC,
@@ -16,7 +16,7 @@ pub enum Reg16 {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Reg8 {
     A,
     F,
@@ -50,22 +50,34 @@ where
 }
 
 impl Register<u8> {
-    pub fn inc(&mut self) {
-        self.value += 1;
+    pub fn inc(&mut self) -> (u8, bool) {
+        let (result, overflow) = self.value.overflowing_add(1);
+        self.value = result;
+
+        (result, overflow)
     }
 
-    pub fn dec(&mut self) {
-        self.value -= 1;
+    pub fn dec(&mut self) -> (u8, bool) {
+        let (result, overflow) = self.value.overflowing_sub(1);
+        self.value = result;
+
+        (result, overflow)
     }
 }
 
 impl Register<u16> {
-    pub fn inc(&mut self) {
-        self.value += 1;
+    pub fn inc(&mut self) -> (u16, bool) {
+        let (result, overflow) = self.value.overflowing_add(1);
+        self.value = result;
+
+        (result, overflow)
     }
 
-    pub fn dec(&mut self) {
-        self.value -= 1;
+    pub fn dec(&mut self) -> (u16, bool) {
+        let (result, overflow) = self.value.overflowing_sub(1);
+        self.value = result;
+
+        (result, overflow)
     }
 }
 
@@ -92,36 +104,5 @@ impl Display for Register<u8> {
 impl Display for Register<u16> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:#06X}", self.value)
-    }
-}
-
-#[allow(dead_code)]
-pub struct Registers {
-    pub a: Rc<Register<u8>>,
-    pub f: Rc<Register<u8>>,
-    pub b: Rc<Register<u8>>,
-    pub c: Rc<Register<u8>>,
-    pub d: Rc<Register<u8>>,
-    pub e: Rc<Register<u8>>,
-    pub h: Rc<Register<u8>>,
-    pub l: Rc<Register<u8>>,
-    pub sp: Register<u16>,
-    pub pc: Register<u16>,
-}
-
-impl Registers {
-    pub fn default() -> Self {
-        Self {
-            a: Rc::new(Register::new(0x01)),
-            f: Rc::new(Register::new(0xB0)),
-            b: Rc::new(Register::new(0x00)),
-            c: Rc::new(Register::new(0x13)),
-            d: Rc::new(Register::new(0x00)),
-            e: Rc::new(Register::new(0xD8)),
-            h: Rc::new(Register::new(0x01)),
-            l: Rc::new(Register::new(0x4D)),
-            sp: Register::new(0xFFFE),
-            pc: Register::new(0x0100),
-        }
     }
 }

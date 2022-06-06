@@ -20,7 +20,7 @@ pub fn word_to_bytes(w: u16) -> (u8, u8) {
 
 // TODO Move tests somewhere else
 mod tests {
-    use crate::memory::{bytes_to_word, word_to_bytes};
+    
 
     #[test]
     pub fn test_bytes_to_word() {

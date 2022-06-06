@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 pub struct Flags {
     pub zero: bool,
     pub sub: bool,
@@ -8,7 +7,6 @@ pub struct Flags {
     // pending_interrupt_enabled: bool
 }
 
-#[allow(dead_code)]
 impl Flags {
     pub fn new() -> Self {
         Self {

@@ -3,7 +3,7 @@ use crate::memory::{AddressSpace, Mmu};
 use super::{
     byteutils::{get_word_from_bytes, split_word},
     flags::Flags,
-    register::{Reg16, Reg8, Registers},
+    register::{Reg16, Reg8},
     Register,
 };
 
@@ -19,7 +19,6 @@ pub struct Cpu<'a> {
     pub sp: Register<u16>,
     pub pc: Register<u16>,
 
-    pub regs: Registers,
     pub flags: Flags,
     pub mmu: &'a mut Mmu,
 }
@@ -41,26 +40,30 @@ impl<'a> Cpu<'a> {
 
             sp: Register::new(0xFFFE),
             pc: Register::new(0x0100),
-            regs: Registers::default(),
             flags: Flags::new(),
             mmu,
         }
     }
 
-    pub fn next_byte(&mut self) -> u8 {
-        let b = self.mmu.get(self.regs.pc.value());
-        self.regs.pc.inc();
+    pub fn read_byte(&mut self) -> u8 {
+        let b = self.mmu.get(self.pc.value());
+        self.pc.inc();
         b
     }
 
-    pub fn next_word(&mut self) -> u16 {
-        let w = self.mmu.get_word(self.regs.pc.value());
-        self.regs.pc.inc();
-        self.regs.pc.inc();
+    pub fn peek_byte(&self) -> u8 {
+        self.mmu.get(self.pc.value())
+    }
+
+    pub fn read_word(&mut self) -> u16 {
+        let w = self.mmu.get_word(self.pc.value());
+        self.pc.inc();
+        self.pc.inc();
         w
     }
 
     // Get RR
+
     fn get_af(&self) -> u16 {
         get_word_from_bytes(self.a.value(), self.f.value())
     }
@@ -104,29 +107,16 @@ impl<'a> Cpu<'a> {
     }
 
     // Get & Set
-    pub fn get_r8(&mut self, target_register: Reg8) -> u8 {
+    pub fn get_r(&mut self, target_register: Reg8) -> &mut Register<u8> {
         match target_register {
-            Reg8::A => self.a.value(),
-            Reg8::F => self.f.value(),
-            Reg8::B => self.b.value(),
-            Reg8::C => self.c.value(),
-            Reg8::D => self.d.value(),
-            Reg8::E => self.e.value(),
-            Reg8::H => self.h.value(),
-            Reg8::L => self.l.value(),
-        }
-    }
-
-    pub fn set_r8(&mut self, target_register: Reg8, value: u8) {
-        match target_register {
-            Reg8::A => self.a.set(value),
-            Reg8::F => self.f.set(value),
-            Reg8::B => self.b.set(value),
-            Reg8::C => self.c.set(value),
-            Reg8::D => self.d.set(value),
-            Reg8::E => self.e.set(value),
-            Reg8::H => self.h.set(value),
-            Reg8::L => self.l.set(value),
+            Reg8::A => &mut self.a,
+            Reg8::F => &mut self.f,
+            Reg8::B => &mut self.b,
+            Reg8::C => &mut self.c,
+            Reg8::D => &mut self.d,
+            Reg8::E => &mut self.e,
+            Reg8::H => &mut self.h,
+            Reg8::L => &mut self.l,
         }
     }
 
