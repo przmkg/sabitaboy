@@ -10,6 +10,12 @@ enum RegisterAction {
     None,
 }
 
+enum Target {
+    Address8(u8),
+    Address16(u16),
+    Register8(Reg8),
+}
+
 impl<'a> Cpu<'a> {
     // JP a16, 3, 16
     fn jp_a16(&mut self, condition: bool) -> Cycles {
@@ -17,7 +23,6 @@ impl<'a> Cpu<'a> {
 
         if condition {
             self.pc.set(next);
-
             16
         } else {
             12
@@ -110,6 +115,19 @@ impl<'a> Cpu<'a> {
         4
     }
 
+    fn ldh_a8(&mut self, target: Target, value: u8) -> Cycles {
+        match target {
+            Target::Address8(address) => self.mmu.set(0xFF00 + address as u16, value),
+            Target::Register8(reg) => {
+                let value = self.mmu.get(0xFF00 + value as u16);
+                self.get_r(reg).set(value);
+            }
+            Target::Address16(_) => panic!("Not possible"),
+        }
+
+        12
+    }
+
     pub fn execute(&mut self) -> u8 {
         let opcode = self.read_byte();
         println!("Opcode: {:#04X}", opcode);
@@ -161,6 +179,16 @@ impl<'a> Cpu<'a> {
             0x22 => self.ld_a16_r(Reg16::HL, self.a.value(), RegisterAction::Inc),
             0x32 => self.ld_a16_r(Reg16::HL, self.a.value(), RegisterAction::Dec),
             0x71 => self.ld_a16_r(Reg16::HL, self.c.value(), RegisterAction::None),
+            // LDH (a8), R / LDH R, (a8)
+            0xE0 => {
+                let address = self.read_byte();
+                let value = self.a.value();
+                self.ldh_a8(Target::Address8(address), value)
+            }
+            0xF0 => {
+                let value = self.read_byte();
+                self.ldh_a8(Target::Register8(Reg8::A), value)
+            }
             _ => {
                 panic!("Unimplemented: {:#04X}", opcode);
             }
