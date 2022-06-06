@@ -45,7 +45,7 @@ impl<'a> Cpu<'a> {
     }
 
     // XOR R, 1, 4
-    // Z
+    // Z 0 0 0
     fn xor_r(&mut self, target_register: Reg8) -> Cycles {
         let reg = self.get_r(target_register);
 
@@ -54,6 +54,10 @@ impl<'a> Cpu<'a> {
         if reg.value() == 0 {
             self.flags.zero = true;
         }
+
+        self.flags.carry = false;
+        self.flags.half_carry = false;
+        self.flags.sub = false;
 
         4
     }
@@ -107,13 +111,15 @@ impl<'a> Cpu<'a> {
     }
 
     pub fn execute(&mut self) -> u8 {
-        println!("PC: {:04X}", self.pc.value());
         let opcode = self.read_byte();
         println!("Opcode: {:#04X}", opcode);
 
         match opcode {
             // NOP
             0x00 => 4,
+            // TODO Impl DI & EI
+            0xF3 => 4,
+            0xFB => 4,
             // JP cc, a16
             0xC2 => self.jp_a16(!self.flags.zero),
             0xD2 => self.jp_a16(!self.flags.carry),
