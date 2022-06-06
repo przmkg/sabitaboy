@@ -13,8 +13,9 @@ enum RegisterAction {
 impl<'a> Cpu<'a> {
     // JP a16, 3, 16
     fn jp_a16(&mut self, condition: bool) -> Cycles {
+        let next = self.read_word();
+
         if condition {
-            let next = self.read_word();
             self.pc.set(next);
 
             16
@@ -23,10 +24,18 @@ impl<'a> Cpu<'a> {
         }
     }
 
-    // JR cc, d8, 2, 12/8
-    fn jr_d8(&mut self, condition: bool) -> Cycles {
+    // JR cc, r8, 2, 12/8
+    fn jr_r8(&mut self, condition: bool) -> Cycles {
+        let value = self.read_byte() as i8;
+
         if condition {
-            let address = self.pc.value().wrapping_add(self.peek_byte() as u16);
+            // Mixed integer ops are not yet on Rust stable
+            let address = if value.is_positive() {
+                self.pc.value().wrapping_add(value as u16)
+            } else {
+                self.pc.value().wrapping_sub(value.unsigned_abs() as u16)
+            };
+
             self.pc.set(address);
 
             12
@@ -105,11 +114,20 @@ impl<'a> Cpu<'a> {
         match opcode {
             // NOP
             0x00 => 4,
+            // JP cc, a16
+            0xC2 => self.jp_a16(!self.flags.zero),
+            0xD2 => self.jp_a16(!self.flags.carry),
             0xC3 => self.jp_a16(true),
+            0xCA => self.jp_a16(self.flags.zero),
+            0xDA => self.jp_a16(self.flags.carry),
+            // JR cc, r8
+            0x20 => self.jr_r8(!self.flags.zero),
+            0x30 => self.jr_r8(!self.flags.carry),
+            0x18 => self.jr_r8(true),
+            0x28 => self.jr_r8(self.flags.zero),
+            0x38 => self.jr_r8(self.flags.carry),
+            //
             0xAF => self.xor_r(Reg8::A),
-            // JR cc, d8
-            0x20 => self.jr_d8(!self.flags.zero),
-            0x30 => self.jr_d8(!self.flags.carry),
             // LD RR, d16
             0x01 => self.ld_rr_d16(Reg16::BC),
             0x11 => self.ld_rr_d16(Reg16::DE),
