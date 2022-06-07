@@ -39,10 +39,18 @@ impl<'a> Cpu<'a> {
             l: Register::new(0x4D),
 
             sp: Register::new(0xFFFE),
-            pc: Register::new(0x0100),
+            pc: Register::new(0x0000),
+            // pc: Register::new(0x0100),
             flags: Flags::new(),
             mmu,
         }
+    }
+
+    pub fn execute(&mut self) -> u8 {
+        let opcode = self.read_byte();
+        println!("Opcode: {:#04X}", opcode);
+
+        self.decode(opcode)
     }
 
     pub fn read_byte(&mut self) -> u8 {

@@ -1,14 +1,22 @@
+use crate::boot_rom::GAMEBOY_CLASSIC;
+
 use super::address_space::AddressSpace;
 use super::cartridge::Cartridge;
 use super::{bytes_to_word, word_to_bytes};
 
 pub struct Mmu {
     cartridge: Cartridge,
+    vram: [u8; 0x2000],
+    is_booting: bool,
 }
 
 impl Mmu {
     pub fn new(cartridge: Cartridge) -> Self {
-        Self { cartridge }
+        Self {
+            cartridge,
+            vram: [0; 0x2000],
+            is_booting: true,
+        }
     }
 
     pub fn power_up(&mut self) {
@@ -59,7 +67,14 @@ impl AddressSpace for Mmu {
         match address {
             // ROM Bank
             // Fixed until 0x3FFF
-            0x0000..=0x7FFF => self.cartridge.get(address),
+            0x0000..=0x7FFF => {
+                // TODO Improve this
+                if self.is_booting {
+                    GAMEBOY_CLASSIC[address as usize]
+                } else {
+                    self.cartridge.get(address)
+                }
+            }
 
             // Video RAM
             0x8000..=0x9FFF => 0x00,

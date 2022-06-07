@@ -15,6 +15,8 @@ fn main() {
 
     let mut cpu = Cpu::new(&mut mmu);
 
+    cpu.power_up();
+
     loop {
         // TODO Redo the whole loop
         cpu.execute();
