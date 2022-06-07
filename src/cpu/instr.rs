@@ -105,7 +105,7 @@ impl<'a> Cpu<'a> {
     // Z 1 H
     fn dec_r(&mut self, target_register: Reg8) -> Cycles {
         let reg = self.get_r(target_register);
-        let half_carry = ((reg.value() & 0xF).wrapping_sub(1) & 0x10) != 0;
+        let half_carry = is_sub_half_carry(reg.value(), 1);
         let (result, _) = reg.dec();
 
         self.flags.sub = true;
@@ -128,13 +128,28 @@ impl<'a> Cpu<'a> {
         12
     }
 
-    pub fn execute(&mut self) -> u8 {
-        let opcode = self.read_byte();
-        println!("Opcode: {:#04X}", opcode);
+    // CP d8, 2, 8
+    // Z 1 H C
+    fn cp_d8(&mut self, value: u8) -> Cycles {
+        let (result, overflow) = self.a.value().overflowing_sub(value);
 
+        self.flags.zero = result == 0;
+        self.flags.sub = true;
+        self.flags.carry = overflow;
+        // TODO Check if half carry is correct
+        self.flags.half_carry = is_sub_half_carry(self.a.value(), value);
+
+        8
+    }
+
+    pub fn decode(&mut self, opcode: u8) -> Cycles {
         match opcode {
             // NOP
             0x00 => 4,
+            0xCB => {
+                let cb_opcode = self.read_byte();
+                self.match_cb_prefix(cb_opcode)
+            }
             // TODO Impl DI & EI
             0xF3 => 4,
             0xFB => 4,
@@ -189,6 +204,11 @@ impl<'a> Cpu<'a> {
                 let value = self.read_byte();
                 self.ldh_a8(Target::Register8(Reg8::A), value)
             }
+            //
+            0xFE => {
+                let value = self.read_byte();
+                self.cp_d8(value)
+            }
             _ => {
                 panic!("Unimplemented: {:#04X}", opcode);
             }
@@ -196,4 +216,8 @@ impl<'a> Cpu<'a> {
 
         // Check for interrupts
     }
+}
+
+fn is_sub_half_carry(a: u8, b: u8) -> bool {
+    ((a & 0xF).wrapping_sub(b) & 0x10) != 0
 }

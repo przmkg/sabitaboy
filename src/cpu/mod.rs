@@ -1,4 +1,5 @@
 mod byteutils;
+mod cb_prefix;
 mod cpu;
 mod flags;
 mod instr;
