@@ -3,25 +3,19 @@ use crate::{cpu::register::Reg16, memory::AddressSpace};
 use super::{register::Reg8, Cpu};
 
 enum Target {
-    A,
-    B,
-    C,
-    D,
-    E,
-    H,
-    L,
-    HL,
+    Register(Reg8),
+    RegisterAddress(Reg16),
 }
 
 const TARGETS: [Target; 8] = [
-    Target::B,
-    Target::C,
-    Target::D,
-    Target::E,
-    Target::H,
-    Target::L,
-    Target::HL,
-    Target::A,
+    Target::Register(Reg8::B),
+    Target::Register(Reg8::C),
+    Target::Register(Reg8::D),
+    Target::Register(Reg8::E),
+    Target::Register(Reg8::H),
+    Target::Register(Reg8::L),
+    Target::RegisterAddress(Reg16::HL),
+    Target::Register(Reg8::A),
 ];
 
 type Cycles = u8;
@@ -41,7 +35,7 @@ impl<'a> Cpu<'a> {
         }
     }
 
-    // TODO Implemented other CB instructionis
+    // TODO Implement other CB instructions
 
     pub fn match_cb_prefix(&mut self, opcode: u8) -> Cycles {
         println!("CB: {:02X}", opcode);
@@ -50,18 +44,12 @@ impl<'a> Cpu<'a> {
         let target = &TARGETS[opcode as usize % 8];
 
         let target_value = match target {
-            Target::B => self.get_r(Reg8::B).value(),
-            Target::C => self.get_r(Reg8::C).value(),
-            Target::D => self.get_r(Reg8::D).value(),
-            Target::E => self.get_r(Reg8::E).value(),
-            Target::H => self.get_r(Reg8::H).value(),
-            Target::L => self.get_r(Reg8::L).value(),
-            Target::HL => {
+            Target::Register(r8) => self.get_r(*r8).value(),
+            Target::RegisterAddress(r16) => {
                 is_hl = true;
-                let address = self.get_r16(Reg16::HL);
+                let address = self.get_r16(*r16);
                 self.mmu.get(address)
             }
-            Target::A => self.get_r(Reg8::A).value(),
         };
 
         match opcode {
