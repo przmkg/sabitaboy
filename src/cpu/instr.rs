@@ -152,10 +152,48 @@ impl<'a> Cpu<'a> {
         self.flags.zero = result == 0;
         self.flags.sub = true;
         self.flags.carry = overflow;
-        // TODO Check if half carry is correct
         self.flags.half_carry = is_sub_half_carry(self.a.value(), value);
 
         8
+    }
+
+    // INC R, 1, 4
+    // Z 0 H
+    // INC RR, 1, 8
+    // INC (RR), 1, 12
+    // Z 0 H
+    fn inc(&mut self, target: Target) -> Cycles {
+        match target {
+            Target::Register8(reg) => {
+                let previous_value = self.get_r(reg).value();
+                let (value, _) = self.get_r(reg).inc();
+
+                self.flags.zero = value == 0;
+                self.flags.sub = false;
+                self.flags.half_carry = is_add_half_carry(previous_value, 1);
+
+                4
+            }
+            Target::Register16(reg) => {
+                let value = self.get_r16(reg);
+                self.set_r16(reg, value.wrapping_add(1));
+
+                8
+            }
+            Target::RegisterAddress16(reg) => {
+                let address = self.get_r16(reg);
+                let value = self.mmu.get(address);
+                self.mmu.set(address, value.wrapping_add(1));
+                let new_value = self.mmu.get(address);
+
+                self.flags.zero = new_value == 0;
+                self.flags.sub = false;
+                self.flags.half_carry = is_add_half_carry(value, 1);
+
+                12
+            }
+            _ => panic!("Not possible"),
+        }
     }
 
     pub fn decode(&mut self, opcode: u8) -> Cycles {
@@ -230,6 +268,19 @@ impl<'a> Cpu<'a> {
                 let value = self.get_r(Reg8::C).value();
                 self.ld_c_a(Target::Register8(Reg8::A), value)
             }
+            // INC
+            0x03 => self.inc(Target::Register16(Reg16::BC)),
+            0x13 => self.inc(Target::Register16(Reg16::DE)),
+            0x23 => self.inc(Target::Register16(Reg16::HL)),
+            0x33 => self.inc(Target::Register16(Reg16::SP)),
+            0x04 => self.inc(Target::Register8(Reg8::B)),
+            0x14 => self.inc(Target::Register8(Reg8::D)),
+            0x24 => self.inc(Target::Register8(Reg8::H)),
+            0x34 => self.inc(Target::RegisterAddress16(Reg16::HL)),
+            0x0C => self.inc(Target::Register8(Reg8::C)),
+            0x1C => self.inc(Target::Register8(Reg8::E)),
+            0x2C => self.inc(Target::Register8(Reg8::L)),
+            0x3C => self.inc(Target::Register8(Reg8::A)),
             // CP
             0xFE => {
                 let value = self.read_byte();
@@ -244,6 +295,11 @@ impl<'a> Cpu<'a> {
     }
 }
 
+// TODO Unsure about those two
 fn is_sub_half_carry(a: u8, b: u8) -> bool {
     ((a & 0xF).wrapping_sub(b) & 0x10) != 0
+}
+
+fn is_add_half_carry(a: u8, b: u8) -> bool {
+    ((a & 0xF).wrapping_add(b) & 0x10) != 0
 }
