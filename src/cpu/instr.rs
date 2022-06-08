@@ -10,10 +10,12 @@ enum RegisterAction {
     None,
 }
 
-enum Target {
+pub enum Target {
     Address8(u8),
     Address16(u16),
     Register8(Reg8),
+    Register16(Reg16),
+    RegisterAddress16(Reg16),
 }
 
 impl<'a> Cpu<'a> {
@@ -115,17 +117,31 @@ impl<'a> Cpu<'a> {
         4
     }
 
-    fn ldh_a8(&mut self, target: Target, value: u8) -> Cycles {
+    // LDH (a8), A, 2, 12
+    fn ldh_a_a8(&mut self, target: Target, value: u8) -> Cycles {
         match target {
             Target::Address8(address) => self.mmu.set(0xFF00 + address as u16, value),
             Target::Register8(reg) => {
                 let value = self.mmu.get(0xFF00 + value as u16);
                 self.get_r(reg).set(value);
             }
-            Target::Address16(_) => panic!("Not possible"),
+            _ => panic!("Not possible"),
         }
 
         12
+    }
+
+    // LD (C), A, 2, 8
+    fn ld_c_a(&mut self, target: Target, value: u8) -> Cycles {
+        match target {
+            Target::Address8(address) => self.mmu.set(0xFF00 + address as u16, value),
+            Target::Register8(reg) => {
+                let value = self.mmu.get(0xFF00 + value as u16);
+                self.get_r(reg).set(value);
+            }
+            _ => panic!("Not possible"),
+        }
+        8
     }
 
     // CP d8, 2, 8
@@ -194,17 +210,27 @@ impl<'a> Cpu<'a> {
             0x22 => self.ld_a16_r(Reg16::HL, self.a.value(), RegisterAction::Inc),
             0x32 => self.ld_a16_r(Reg16::HL, self.a.value(), RegisterAction::Dec),
             0x71 => self.ld_a16_r(Reg16::HL, self.c.value(), RegisterAction::None),
-            // LDH (a8), R / LDH R, (a8)
+            // LDH (a8), A / LDH A, (a8)
             0xE0 => {
                 let address = self.read_byte();
                 let value = self.a.value();
-                self.ldh_a8(Target::Address8(address), value)
+                self.ldh_a_a8(Target::Address8(address), value)
             }
             0xF0 => {
                 let value = self.read_byte();
-                self.ldh_a8(Target::Register8(Reg8::A), value)
+                self.ldh_a_a8(Target::Register8(Reg8::A), value)
             }
-            //
+            // LD (C), A / LD A, (C)
+            0xE2 => {
+                let address = self.get_r(Reg8::C).value();
+                let value = self.a.value();
+                self.ld_c_a(Target::Address8(address), value)
+            }
+            0xF2 => {
+                let value = self.get_r(Reg8::C).value();
+                self.ld_c_a(Target::Register8(Reg8::A), value)
+            }
+            // CP
             0xFE => {
                 let value = self.read_byte();
                 self.cp_d8(value)

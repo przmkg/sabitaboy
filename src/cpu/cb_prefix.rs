@@ -1,21 +1,16 @@
 use crate::{cpu::register::Reg16, memory::AddressSpace};
 
-use super::{register::Reg8, Cpu};
-
-enum Target {
-    Register(Reg8),
-    RegisterAddress(Reg16),
-}
+use super::{instr::Target, register::Reg8, Cpu};
 
 const TARGETS: [Target; 8] = [
-    Target::Register(Reg8::B),
-    Target::Register(Reg8::C),
-    Target::Register(Reg8::D),
-    Target::Register(Reg8::E),
-    Target::Register(Reg8::H),
-    Target::Register(Reg8::L),
-    Target::RegisterAddress(Reg16::HL),
-    Target::Register(Reg8::A),
+    Target::Register8(Reg8::B),
+    Target::Register8(Reg8::C),
+    Target::Register8(Reg8::D),
+    Target::Register8(Reg8::E),
+    Target::Register8(Reg8::H),
+    Target::Register8(Reg8::L),
+    Target::RegisterAddress16(Reg16::HL),
+    Target::Register8(Reg8::A),
 ];
 
 type Cycles = u8;
@@ -41,15 +36,15 @@ impl<'a> Cpu<'a> {
         println!("CB: {:02X}", opcode);
 
         let mut is_hl = false;
-        let target = &TARGETS[opcode as usize % 8];
 
-        let target_value = match target {
-            Target::Register(r8) => self.get_r(*r8).value(),
-            Target::RegisterAddress(r16) => {
+        let target_value = match &TARGETS[opcode as usize % 8] {
+            Target::Register8(r8) => self.get_r(*r8).value(),
+            Target::RegisterAddress16(r16) => {
                 is_hl = true;
                 let address = self.get_r16(*r16);
                 self.mmu.get(address)
             }
+            _ => panic!("Wrong target for a CB prefix"),
         };
 
         match opcode {
